@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 #include <sysexits.h>
 #include "xml-format.h"
 
@@ -80,13 +81,16 @@ int     process_block(FILE *infile, int indent)
 	    indent_step = 4;
     char    tag_name[MAX_TAG_LEN+1];
     char    output_buff[MAX_LINE_LEN+1];
+    tag_list_t  tags;
+    
+    tag_list_load(&tags);
     
     while ( (ch = getc(infile)) != EOF )
     {
 	if ( ch == '<' )
 	{
 	    read_tag(infile, tag_name, MAX_TAG_LEN);
-	    switch ( tag_type(tag_name) )
+	    switch ( tag_type(&tags, tag_name) )
 	    {
 		/*
 		 *  If sectioning tag (chapter, section) change indent
@@ -100,10 +104,12 @@ int     process_block(FILE *infile, int indent)
 			buffer_tag(output_buff, &col, tag_name);
 			flush_line(output_buff, infile, indent, &col);
 			INCREASE(indent, indent_step);
+			flush_line(output_buff, infile, indent, &col);
 		    }
 		    else
 		    {
 			// Dump current line and put tag on next line
+			swallow_space(infile);
 			DECREASE(indent,indent_step);
 			flush_line(output_buff, infile, indent, &col);
 			buffer_tag(output_buff, &col, tag_name);
@@ -132,7 +138,6 @@ int     process_block(FILE *infile, int indent)
 		case    LINE_TAG:
 		    if ( *tag_name != '/' ) /* Closing tag */
 		    {
-			flush_line(output_buff, infile, indent, &col);
 			buffer_tag(output_buff, &col, tag_name);
 		    }
 		    else
@@ -140,6 +145,11 @@ int     process_block(FILE *infile, int indent)
 			buffer_tag(output_buff, &col, tag_name);
 			flush_line(output_buff, infile, indent, &col);
 		    }
+		    break;
+		
+		case    COMMENT_TAG:
+		    buffer_tag(output_buff, &col, tag_name);
+		    flush_line(output_buff, infile, indent, &col);
 		    break;
 		
 		/*
@@ -224,29 +234,29 @@ int     read_tag(FILE *infile, char *tag_name_ptr, int max_tag_len)
  *  2013-02-09  Jason Bacon Begin
  ***************************************************************************/
 
-tag_t   tag_type(const char *tag_name)
+tag_t   tag_type(tag_list_t *tags, const char *tag_name)
 
 {
     int     c;
     
-    if ( tag_name[1] == '!' )
+    if ( tag_name[0] == '!' )
 	return COMMENT_TAG;
     
-    /* Temporary: replace with tag lists */
-    /* Check for both opening and closing tags */
+    /*
+     *  Tag name may start at position 0 or 1 (after '/')
+     */
     for (c = 0; c <= 1; ++c)
     {
-	if ( ( memcmp(tag_name + c, "chapter", 7) == 0 ) ||
-	     ( memcmp(tag_name + c, "section", 7) == 0 ) ||
-	     ( memcmp(tag_name + c, "itemizedlist", 12) == 0 ) ||
-	     ( memcmp(tag_name + c, "orderedlist", 11) == 0 ) ||
-	     ( memcmp(tag_name + c, "note", 4) == 0 ) )
+	if ( bsearch(tag_name + c, tags->sectioning_tags, tags->sectioning_tag_count,
+	    sizeof(char *), (int (*)(const void *,const void *))memptrcmp) != NULL )
 	    return SECTIONING_TAG;
-	if ( ( memcmp(tag_name + c, "para", 4) == 0 ) ||
-	     ( memcmp(tag_name + c, "listitem", 8) == 0 ) )
+	
+	if ( bsearch(tag_name + c, tags->block_tags, tags->block_tag_count,
+	    sizeof(char *), (int (*)(const void *,const void *))memptrcmp) != NULL )
 	    return BLOCK_TAG;
-	if ( ( memcmp(tag_name + c, "title", 5) == 0 ) ||
-	     ( memcmp(tag_name + c, "indexterm", 9) == 0 ) )
+	
+	if ( bsearch(tag_name + c, tags->line_tags, tags->line_tag_count,
+	    sizeof(char *), (int (*)(const void *,const void *))memptrcmp) != NULL )
 	    return LINE_TAG;
     }
     return INLINE_TAG;
@@ -269,7 +279,8 @@ void    flush_line(char *output_buff, FILE *infile, int indent, int *col)
 
 {
     output_buff[*col] = '\0';
-    puts(output_buff);
+    if ( !strblank(output_buff) )
+	puts(output_buff);
     //fflush(stdout);
     memset(output_buff, ' ', indent);
     swallow_space(infile);
@@ -320,5 +331,128 @@ void    buffer_tag(char *output_buff, int *col, const char *tag_name)
     //fprintf(stderr, "*col = %d\n", *col);
     snprintf(output_buff + *col, MAX_LINE_LEN - *col, "<%s>", tag_name);
     *col += strlen(tag_name) + 2;
+}
+
+
+/***************************************************************************
+ *  Description:
+ *  
+ *  Arguments:
+ *
+ *  Returns:
+ *
+ *  History: 
+ *  Date        Name        Modification
+ *  2013-02-10  Jason Bacon Begin
+ ***************************************************************************/
+
+size_t  read_string_list(const char *filename, char *str_array[],
+	size_t max_strings, size_t max_strlen)
+
+{
+    size_t  list_size = 0;
+    FILE    *infile;
+    char    string[max_strlen+1];
+    
+    if ( (infile = fopen(filename, "r")) == NULL )
+	return -1;
+    while ( read_string(infile, string, max_strlen) != 0 )
+    {
+	str_array[list_size++] = strdup(string);
+    }
+    fclose(infile);
+    qsort(str_array, list_size, sizeof(char *),
+	(int (*)(const void *,const void *))strptrcmp);
+    /*for (c = 0; c < list_size; ++c)
+	puts(str_array[c]);*/
+    return list_size;
+}
+
+
+/***************************************************************************
+ *  Description:
+ *  
+ *  Arguments:
+ *
+ *  Returns:
+ *
+ *  History: 
+ *  Date        Name        Modification
+ *  2013-02-10  Jason Bacon Begin
+ ***************************************************************************/
+
+size_t  read_string(FILE *infile, char *string, size_t max_strlen)
+
+{
+    char    *p;
+    
+    for (p = string; ( (*p = getc(infile)) != '\n' ); ++p)
+	;
+    *p = '\0';
+    return p - string;
+}
+
+
+/***************************************************************************
+ *  Description:
+ *  
+ *  Arguments:
+ *
+ *  Returns:
+ *
+ *  History: 
+ *  Date        Name        Modification
+ *  2013-02-10  Jason Bacon Begin
+ ***************************************************************************/
+
+int     tag_list_load(tag_list_t *tags)
+
+{
+    tags->sectioning_tag_count = read_string_list("sectioning-tags.txt",
+	tags->sectioning_tags, MAX_TAGS, MAX_TAG_LEN);
+    tags->block_tag_count = read_string_list("block-tags.txt",
+	tags->block_tags, MAX_TAGS, MAX_TAG_LEN);
+    tags->line_tag_count = read_string_list("line-tags.txt",
+	tags->line_tags, MAX_TAGS, MAX_TAG_LEN);
+    return EX_OK;
+}
+
+
+/***************************************************************************
+ *  Description:
+ *  
+ *  Arguments:
+ *
+ *  Returns:
+ *
+ *  History: 
+ *  Date        Name        Modification
+ *  2013-02-10  Jason Bacon Begin
+ ***************************************************************************/
+
+int     strptrcmp(char **s1, char **s2)
+
+{
+    return strcmp(*s1, *s2);
+}
+
+
+/***************************************************************************
+ *  Description:
+ *  
+ *  Arguments:
+ *
+ *  Returns:
+ *
+ *  History: 
+ *  Date        Name        Modification
+ *  2013-02-10  Jason Bacon Begin
+ ***************************************************************************/
+
+int     memptrcmp(char *s1, char **s2)
+
+{
+    //printf("%s %d\n", s1, strlen(s1));
+    return memcmp(s1, *s2, strlen(*s2));
 }
 
