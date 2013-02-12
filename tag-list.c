@@ -90,22 +90,22 @@ void    tag_list_error_check(int list_size, const char *path)
 }
 
 
-int     tag_list_load(tag_list_t *tags)
+int     tag_list_load(tag_list_t *tags, const char *subdir)
 
 {
     char    path[PATH_MAX+1];
     
-    snprintf(path, PATH_MAX, "%s/Config/sectioning-tags.txt", DATADIR);
+    snprintf(path, PATH_MAX, "%s/Config/%s/sectioning-tags.txt", DATADIR, subdir);
     tags->sectioning_tag_count = read_string_list(path,
 	tags->sectioning_tags, MAX_TAGS, MAX_TAG_LEN);
     tag_list_error_check(tags->sectioning_tag_count, path);
 
-    snprintf(path, PATH_MAX, "%s/Config/block-tags.txt", DATADIR);
+    snprintf(path, PATH_MAX, "%s/Config/%s/block-tags.txt", DATADIR, subdir);
     tags->block_tag_count = read_string_list(path,
 	tags->block_tags, MAX_TAGS, MAX_TAG_LEN);
     tag_list_error_check(tags->block_tag_count, path);
 
-    snprintf(path, PATH_MAX, "%s/Config/line-tags.txt", DATADIR);
+    snprintf(path, PATH_MAX, "%s/Config/%s/line-tags.txt", DATADIR, subdir);
     tags->line_tag_count = read_string_list(path,
 	tags->line_tags, MAX_TAGS, MAX_TAG_LEN);
     tag_list_error_check(tags->line_tag_count, path);

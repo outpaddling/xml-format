@@ -59,9 +59,20 @@ int xml_format(const char *filename)
     int     status,
 	    outfd;
     char    backup[PATH_MAX+1],
-	    buff[COPY_BUFF_SIZE+1];
+	    buff[COPY_BUFF_SIZE+1],
+	    *subdir;
     size_t  bytes;
     extern int  errno;
+    tag_list_t  tags;
+    
+    if ( ( subdir = strrchr(filename, '.')) == NULL )
+    {
+	fprintf(stderr, "Error: Filename must have an extension to indicate\n"
+			"the file type (e.g. .dbk for DocBook).\n");
+	return EX_USAGE;
+    }
+    
+    tag_list_load(&tags, subdir+1);
     
     if ( (infile = fopen(filename,"r")) == NULL )
     {
@@ -77,7 +88,7 @@ int xml_format(const char *filename)
 	return EX_CANTCREAT;
     }
     
-    status = process_file(infile, tempfile, 0);
+    status = process_file(infile, tempfile, 0, &tags);
     fclose(infile);
     
     if ( status == EX_OK )
@@ -127,7 +138,7 @@ int xml_format(const char *filename)
  *  2013-02-09  Jason Bacon Begin
  ***************************************************************************/
 
-int     process_file(FILE *infile, FILE *outfile, int indent)
+int     process_file(FILE *infile, FILE *outfile, int indent, tag_list_t *tags)
 
 {
     int     ch,
@@ -135,16 +146,13 @@ int     process_file(FILE *infile, FILE *outfile, int indent)
 	    indent_step = 4;
     char    tag_name[MAX_TAG_LEN+1];
     char    output_buff[MAX_LINE_LEN+1];
-    tag_list_t  tags;
-    
-    tag_list_load(&tags);
     
     while ( (ch = getc(infile)) != EOF )
     {
 	if ( ch == '<' )
 	{
 	    read_tag(infile, tag_name, MAX_TAG_LEN);
-	    switch ( tag_type(&tags, tag_name) )
+	    switch ( tag_type(tags, tag_name) )
 	    {
 		/*
 		 *  If sectioning tag (chapter, section) change indent
