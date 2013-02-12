@@ -5482,7 +5482,7 @@
 	derivatives such as CentOS and Scientific Linux,
 	offer only a few thousand unique packages in the
 	<productname>Yum</productname> repository.  Although a few thousand
-	may sound like a large number, mostresearchers will find that
+	may sound like a large number, most researchers will find that
 	much of the software they need cannot be installed via
 	<productname>Yum</productname>.  This is not a criticism of
 	Red Hat, but illustrates that it was designed for a different
@@ -5503,7 +5503,7 @@
 	
 	<para>
 	Pkgsrc has the additional benefit of being the only cross-platform
-	SMS.  If can currently be used to install most packages on NetBSD,
+	SMS.  It can currently be used to install most packages on NetBSD,
 	Dragonfly BSD, Linux, Mac OS X, and Interix (a MS Windows Unix
 	layer).
 	</para>
