@@ -1,3 +1,7 @@
+
+tag-list.o: tag-list.c tag-list.h
+	${CC} -c ${CFLAGS} tag-list.c
+
 xml-format.o: xml-format.c xml-format.h protos.h
 	${CC} -c ${CFLAGS} xml-format.c
 

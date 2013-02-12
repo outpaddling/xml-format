@@ -17,8 +17,12 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <limits.h>
+#include <fcntl.h>
 #include <sysexits.h>
+#include "tag-list.h"
 #include "xml-format.h"
+
 
 int     main(int argc,char *argv[])
 
@@ -50,13 +54,63 @@ int     main(int argc,char *argv[])
 int xml_format(const char *filename)
 
 {
-    FILE    *infile;
+    FILE    *infile,
+	    *tempfile;
+    int     status,
+	    outfd;
+    char    backup[PATH_MAX+1],
+	    buff[COPY_BUFF_SIZE+1];
+    size_t  bytes;
+    extern int  errno;
     
     if ( (infile = fopen(filename,"r")) == NULL )
+    {
+	fprintf(stderr, "Error: Could not open %s for reading: %s\n",
+	    filename, strerror(errno));
 	return EX_NOINPUT;
+    }
     
-    process_block(infile, 0);
+    if ( (tempfile = tmpfile()) == NULL )
+    {
+	fprintf(stderr, "Error: Could not open temporary file: %s\n",
+	    strerror(errno));
+	return EX_CANTCREAT;
+    }
+    
+    status = process_file(infile, tempfile, 0);
     fclose(infile);
+    
+    if ( status == EX_OK )
+    {
+	snprintf(backup, PATH_MAX, "%s.bak", filename);
+	if ( rename(filename, backup) != 0 )
+	{
+	    fprintf(stderr, "Error: Could not rename %s to %s: %s\n",
+		filename, backup, strerror(errno));
+	    return EX_CANTCREAT;
+	}
+	
+	// Rewind temp file
+	if ( fseek(tempfile, 0L, SEEK_SET) != 0 )
+	{
+	    fprintf(stderr, "Error: Could not rewind output file: %s\n",
+		strerror(errno));
+	    return EX_IOERR;
+	}
+	
+	// Copy temp file back to original filename
+	if ( (outfd = open(filename, O_WRONLY|O_CREAT, 0644)) == -1 )
+	{
+	    fprintf(stderr, "Error: Could not open %s for writing: %s\n",
+		filename, strerror(errno));
+	    return EX_CANTCREAT;
+	}
+	
+	while ( (bytes = read(fileno(tempfile), buff, COPY_BUFF_SIZE)) > 0 )
+	    write(outfd, buff, bytes);
+	close(outfd);
+    }
+    
     return EX_OK;
 }
 
@@ -73,7 +127,7 @@ int xml_format(const char *filename)
  *  2013-02-09  Jason Bacon Begin
  ***************************************************************************/
 
-int     process_block(FILE *infile, int indent)
+int     process_file(FILE *infile, FILE *outfile, int indent)
 
 {
     int     ch,
@@ -99,21 +153,21 @@ int     process_block(FILE *infile, int indent)
 		case    SECTIONING_TAG:
 		    if ( *tag_name != '/' ) /* Closing tag */
 		    {
+			putc('\n', outfile);
 			// Dump current line and put tag on next line
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 			buffer_tag(output_buff, &col, tag_name);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 			INCREASE(indent, indent_step);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 		    }
 		    else
 		    {
 			// Dump current line and put tag on next line
-			swallow_space(infile);
 			DECREASE(indent,indent_step);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 			buffer_tag(output_buff, &col, tag_name);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 		    }
 		    break;
 
@@ -123,33 +177,38 @@ int     process_block(FILE *infile, int indent)
 		case    BLOCK_TAG:
 		    if ( *tag_name != '/' ) /* Closing tag */
 		    {
-			flush_line(output_buff, infile, indent, &col);
+			if ( ! buff_empty(output_buff, col) )
+			    flush_line(output_buff, infile, outfile, indent, &col);
+			putc('\n',outfile);
 			buffer_tag(output_buff, &col, tag_name);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 		    }
 		    else
 		    {
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 			buffer_tag(output_buff, &col, tag_name);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 		    }
 		    break;
 		
 		case    LINE_TAG:
 		    if ( *tag_name != '/' ) /* Closing tag */
 		    {
+			if ( ! buff_empty(output_buff, col) )
+			    flush_line(output_buff, infile, outfile, indent, &col);
 			buffer_tag(output_buff, &col, tag_name);
 		    }
 		    else
 		    {
 			buffer_tag(output_buff, &col, tag_name);
-			flush_line(output_buff, infile, indent, &col);
+			flush_line(output_buff, infile, outfile, indent, &col);
 		    }
 		    break;
 		
 		case    COMMENT_TAG:
+		    putc('\n',outfile);
 		    buffer_tag(output_buff, &col, tag_name);
-		    flush_line(output_buff, infile, indent, &col);
+		    flush_line(output_buff, infile, outfile, indent, &col);
 		    break;
 		
 		/*
@@ -157,36 +216,18 @@ int     process_block(FILE *infile, int indent)
 		 */
 		default:
 		    buffer_tag(output_buff, &col, tag_name);
+		    // This causes space to be swallowed after xref
+		    //check_line_len(infile, outfile, output_buff, indent, &col);
 	    }
 	}
 	else if ( isspace(ch) )
 	{
 	    output_buff[col] = ' ';
-
-	    if ( col > MAX_COLS - 2 )
-	    {
-		int     save_col, c;
-		
-		// Back up to previous space and terminate line there
-		for (c = col - 1; ( c > 0 ) && !isspace(output_buff[c]); --c )
-		    ;
-		if ( c > 0 )
-		{
-		    save_col = col;
-		    col = c;
-		    flush_line(output_buff, infile, indent, &col);
-		    memmove(output_buff + col, output_buff + c + 1, save_col - c);
-		    col += save_col - c - 1;
-		}
-		else
-		{
-		    flush_line(output_buff, infile, indent, &col);
-		}
-	    }
+	    check_line_len(infile, outfile, output_buff, indent, &col);
 
 	    if ( swallow_space(infile) == EOF )
 	    {
-		flush_line(output_buff, infile, indent, &col);
+		flush_line(output_buff, infile, outfile, indent, &col);
 		return EX_OK;
 	    }
 	    ++col;
@@ -275,15 +316,22 @@ tag_t   tag_type(tag_list_t *tags, const char *tag_name)
  *  2013-02-09  Jason Bacon Begin
  ***************************************************************************/
 
-void    flush_line(char *output_buff, FILE *infile, int indent, int *col)
+void    flush_line(char *output_buff, FILE *infile, FILE *outfile,
+	    int indent, int *col)
 
 {
     output_buff[*col] = '\0';
     if ( !strblank(output_buff) )
-	puts(output_buff);
+    {
+	fputs(output_buff, outfile);
+	putc('\n', outfile);
+    }
+    
     //fflush(stdout);
-    memset(output_buff, ' ', indent);
+    // This is needed *almost* everywhere, so we put it in here and
+    // compensate in the few exceptional cases
     swallow_space(infile);
+    memset(output_buff, ' ', indent);
     *col = indent;
 }
 
@@ -328,9 +376,15 @@ int     swallow_space(FILE *infile)
 void    buffer_tag(char *output_buff, int *col, const char *tag_name)
 
 {
+    int     len = strlen(tag_name);
+    
     //fprintf(stderr, "*col = %d\n", *col);
+    
+    // FIXME: If current line is not blank, and tag won't fit within MAX_COLS,
+    // flush the line first and put tag on next line, so that tags with
+    // attributes are not broken up.
     snprintf(output_buff + *col, MAX_LINE_LEN - *col, "<%s>", tag_name);
-    *col += strlen(tag_name) + 2;
+    *col += len + 2;
 }
 
 
@@ -343,116 +397,51 @@ void    buffer_tag(char *output_buff, int *col, const char *tag_name)
  *
  *  History: 
  *  Date        Name        Modification
- *  2013-02-10  Jason Bacon Begin
+ *  2013-02-11  Jason Bacon Begin
  ***************************************************************************/
 
-size_t  read_string_list(const char *filename, char *str_array[],
-	size_t max_strings, size_t max_strlen)
+int     buff_empty(char *buff, int col)
 
 {
-    size_t  list_size = 0;
-    FILE    *infile;
-    char    string[max_strlen+1];
+    buff[col] = '\0';
+    return strblank(buff);
+}
+
+
+/***************************************************************************
+ *  Description:
+ *  
+ *  Arguments:
+ *
+ *  Returns:
+ *
+ *  History: 
+ *  Date        Name        Modification
+ *  2013-02-11  Jason Bacon Begin
+ ***************************************************************************/
+
+void    check_line_len(FILE *infile, FILE *outfile, char *output_buff, int indent, int *col)
+
+{
+    int     save_col, c;
     
-    if ( (infile = fopen(filename, "r")) == NULL )
-	return -1;
-    while ( read_string(infile, string, max_strlen) != 0 )
+    if ( *col > MAX_COLS - 2 )
     {
-	str_array[list_size++] = strdup(string);
+	// Back up to previous space and terminate line there
+	for (c = *col - 1; (c > MAX_COLS) || (c > 0) && !isspace(output_buff[c]); --c)
+	    ;
+	if ( c > 0 )
+	{
+	    save_col = *col;
+	    *col = c;
+	    flush_line(output_buff, infile, outfile, indent, col);
+	    memmove(output_buff + *col, output_buff + c + 1, save_col - c);
+	    *col += save_col - c - 1;
+	}
+	else
+	{
+	    flush_line(output_buff, infile, outfile, indent, col);
+	}
     }
-    fclose(infile);
-    qsort(str_array, list_size, sizeof(char *),
-	(int (*)(const void *,const void *))strptrcmp);
-    /*for (c = 0; c < list_size; ++c)
-	puts(str_array[c]);*/
-    return list_size;
-}
-
-
-/***************************************************************************
- *  Description:
- *  
- *  Arguments:
- *
- *  Returns:
- *
- *  History: 
- *  Date        Name        Modification
- *  2013-02-10  Jason Bacon Begin
- ***************************************************************************/
-
-size_t  read_string(FILE *infile, char *string, size_t max_strlen)
-
-{
-    char    *p;
-    
-    for (p = string; ( (*p = getc(infile)) != '\n' ); ++p)
-	;
-    *p = '\0';
-    return p - string;
-}
-
-
-/***************************************************************************
- *  Description:
- *  
- *  Arguments:
- *
- *  Returns:
- *
- *  History: 
- *  Date        Name        Modification
- *  2013-02-10  Jason Bacon Begin
- ***************************************************************************/
-
-int     tag_list_load(tag_list_t *tags)
-
-{
-    tags->sectioning_tag_count = read_string_list("sectioning-tags.txt",
-	tags->sectioning_tags, MAX_TAGS, MAX_TAG_LEN);
-    tags->block_tag_count = read_string_list("block-tags.txt",
-	tags->block_tags, MAX_TAGS, MAX_TAG_LEN);
-    tags->line_tag_count = read_string_list("line-tags.txt",
-	tags->line_tags, MAX_TAGS, MAX_TAG_LEN);
-    return EX_OK;
-}
-
-
-/***************************************************************************
- *  Description:
- *  
- *  Arguments:
- *
- *  Returns:
- *
- *  History: 
- *  Date        Name        Modification
- *  2013-02-10  Jason Bacon Begin
- ***************************************************************************/
-
-int     strptrcmp(char **s1, char **s2)
-
-{
-    return strcmp(*s1, *s2);
-}
-
-
-/***************************************************************************
- *  Description:
- *  
- *  Arguments:
- *
- *  Returns:
- *
- *  History: 
- *  Date        Name        Modification
- *  2013-02-10  Jason Bacon Begin
- ***************************************************************************/
-
-int     memptrcmp(char *s1, char **s2)
-
-{
-    //printf("%s %d\n", s1, strlen(s1));
-    return memcmp(s1, *s2, strlen(*s2));
 }
 
