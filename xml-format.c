@@ -44,10 +44,14 @@ int     main(int argc,char *argv[])
 
 /***************************************************************************
  *  Description:
- *  
- *  Arguments:
+ *      Format an XML document contained in filename.
  *
+ *  Arguments:
+ *      filename:   XML document to format.  Serves as both the
+ *                  input and output file.  The original file is
+ *                  saved as filename.bak.
  *  Returns:
+ *      See sysexits.h
  *
  *  History: 
  *  Date        Name        Modification
@@ -131,10 +135,17 @@ int xml_format(const char *filename)
 
 /***************************************************************************
  *  Description:
- *  
+ *      Perform XML formatting on the stream infile, writing the formatted
+ *      text to stream outfile.
+ *
  *  Arguments:
+ *      infile:     input stream
+ *      outfile:    output stream
+ *      indent:     number of columns to indent each level
+ *      tags:       list of tags specific to the XML language (e.g. DocBook)
  *
  *  Returns:
+ *      See sysexits.h
  *
  *  History: 
  *  Date        Name        Modification
@@ -253,10 +264,15 @@ int     process_file(FILE *infile, FILE *outfile, int indent, tag_list_t *tags)
 
 /***************************************************************************
  *  Description:
- *  
+ *      Read a tag from an XML input stream.
+ *
  *  Arguments:
+ *      infile:         Stream of XML input
+ *      tag_name_ptr:   char buffer to receive tag
+ *      max_tag_len:    length of char buffer
  *
  *  Returns:
+ *      See sysexits.h
  *
  *  History: 
  *  Date        Name        Modification
@@ -276,10 +292,14 @@ int     read_tag(FILE *infile, char *tag_name_ptr, int max_tag_len)
 
 /***************************************************************************
  *  Description:
- *  
+ *      Determine type of tag based on name and XML language (e.g. DocBook)
+ *
  *  Arguments:
+ *      tags:   Structure containing lists of block, line, and sectioning
+ *              tags for the given language.
  *
  *  Returns:
+ *      Enumerated value indicating block, line, sectioning, or inline tag.
  *
  *  History: 
  *  Date        Name        Modification
@@ -317,10 +337,14 @@ tag_t   tag_type(tag_list_t *tags, const char *tag_name)
 
 /***************************************************************************
  *  Description:
- *  
- *  Arguments:
+ *      Output a line of formatted XML.
  *
- *  Returns:
+ *  Arguments:
+ *      output_buff:    char buffer containing accumulated formatted text
+ *      infile:         Unformatted XML input stream
+ *      outfile:        Formatted XML output stream
+ *      indent:         Number of columns to indent each level
+ *      *col:           Column where next character should be buffered
  *
  *  History: 
  *  Date        Name        Modification
@@ -349,10 +373,13 @@ void    flush_line(char *output_buff, FILE *infile, FILE *outfile,
 
 /***************************************************************************
  *  Description:
- *  
+ *      Discard extra whitespace in the input stream.
+ *
  *  Arguments:
+ *      infile:     Input stream
  *
  *  Returns:
+ *      First non-whitespace character read.
  *
  *  History: 
  *  Date        Name        Modification
@@ -374,10 +401,12 @@ int     swallow_space(FILE *infile)
 
 /***************************************************************************
  *  Description:
- *  
- *  Arguments:
+ *      Write a tag to the output buffer.
  *
- *  Returns:
+ *  Arguments:
+ *      output_buff:    char buffer containing an output line
+ *      *col:           Column where next char should be written
+ *      tag_name:       Name of tag, not including <>
  *
  *  History: 
  *  Date        Name        Modification
@@ -401,10 +430,14 @@ void    buffer_tag(char *output_buff, int *col, const char *tag_name)
 
 /***************************************************************************
  *  Description:
- *  
+ *      Return true if the buffer contains only whitespace.
+ *
  *  Arguments:
+ *      buff:   char buffer containing the line
+ *      col:    Column where next character would be written.
  *
  *  Returns:
+ *      True if buffer contains only whitespace up to buff[col].
  *
  *  History: 
  *  Date        Name        Modification
@@ -421,17 +454,22 @@ int     buff_empty(char *buff, int col)
 
 /***************************************************************************
  *  Description:
- *  
- *  Arguments:
+ *      See if it's time to break the current output line.
  *
- *  Returns:
+ *  Arguments:
+ *      infile:         Input XML stream
+ *      outfile:        Output XML stream
+ *      output_buff:    Buffer containing output
+ *      indent:         Number of columns to indent each level
+ *      *col:           Column where next char should be written
  *
  *  History: 
  *  Date        Name        Modification
  *  2013-02-11  Jason Bacon Begin
  ***************************************************************************/
 
-void    check_line_len(FILE *infile, FILE *outfile, char *output_buff, int indent, int *col)
+void    check_line_len(FILE *infile, FILE *outfile, char *output_buff,
+			int indent, int *col)
 
 {
     int     save_col, c;
