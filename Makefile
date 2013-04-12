@@ -53,7 +53,7 @@ MAN     = xml-format.1
 ############################################################################
 # List object files that comprise BIN.
 
-OBJS    = xml-format.o tag-list.o
+OBJS    = xml-format.o tag-list.o strblank.o
 
 ############################################################################
 # Compile, link, and install options

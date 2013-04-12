@@ -20,6 +20,9 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <sysexits.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
 #include "tag-list.h"
 #include "xml-format.h"
 
@@ -32,8 +35,8 @@ int     main(int argc,char *argv[])
 	case    2:
 	    break;
 	default:
-	    fprintf(stderr,"Usage: %s\n",argv[0]);
-	    break;
+	    fprintf(stderr,"Usage: %s filename\n",argv[0]);
+	    return EX_USAGE;
     }
     return xml_format(argv[1]);
 }
@@ -435,8 +438,12 @@ void    check_line_len(FILE *infile, FILE *outfile, char *output_buff, int inden
     
     if ( *col > MAX_COLS - 2 )
     {
-	// Back up to previous space and terminate line there
-	for (c = *col - 1; (c > MAX_COLS) || (c > 0) && !isspace(output_buff[c]); --c)
+	/* 
+	 *  Back up to last whitespace at a position < MAX_COLS and
+	 *  break line there
+	 */
+	for (c = *col - 1;
+	    (c > MAX_COLS) || ((c > 0) && !isspace(output_buff[c])); --c)
 	    ;
 	if ( c > 0 )
 	{
