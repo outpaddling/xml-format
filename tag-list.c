@@ -110,6 +110,11 @@ int     tag_list_load(tag_list_t *tags, const char *subdir)
 	tags->line_tags, MAX_TAGS, MAX_TAG_LEN);
     tag_list_error_check(tags->line_tag_count, path);
 
+    snprintf(path, PATH_MAX, "%s/Config/%s/verbatim-tags.txt", DATADIR, subdir);
+    tags->verbatim_tag_count = read_string_list(path,
+	tags->verbatim_tags, MAX_TAGS, MAX_TAG_LEN);
+    tag_list_error_check(tags->verbatim_tag_count, path);
+
     return EX_OK;
 }
 

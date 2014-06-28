@@ -1,3 +1,6 @@
+acknowledgements
+appendix
+article
 chapter
 section
 orderedlist
@@ -7,4 +10,9 @@ mediaobject
 imageobject
 figure
 caution
+table
+tgroup
+thead
+tbody
+row
 

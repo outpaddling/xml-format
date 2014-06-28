@@ -149,9 +149,9 @@ realclean: clean
 # Install all target files (binaries, libraries, docs, etc.)
 
 install: all
-	${MKDIR} -p ${PREFIX}/bin ${PREFIX}/man/man1
-	${INSTALL} -s -m 0555 ${BIN} ${PREFIX}/bin
-	${INSTALL} -m 0444 ${MAN} ${MANPREFIX}/man/man1
+	${MKDIR} -p ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/man/man1
+	${INSTALL} -s -m 0555 ${BIN} ${STAGEDIR}${PREFIX}/bin
+	${INSTALL} -m 0444 ${MAN} ${STAGEDIR}${MANPREFIX}/man/man1
 	${MKDIR} -p ${DATADIR}
 	${CP} -R Config ${DATADIR}
 
@@ -159,6 +159,6 @@ install: all
 # Remove all installed files
 
 uninstall:
-	${RM} ${PREFIX}/bin/${BIN}
-	${RM} ${MANPREFIX}/man/man1/${MAN}
+	${RM} ${STAGEDIR}${PREFIX}/bin/${BIN}
+	${RM} ${STAGEDIR}${MANPREFIX}/man/man1/${MAN}
 

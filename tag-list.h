@@ -6,6 +6,7 @@ typedef enum
     BLOCK_TAG,
     INLINE_TAG,
     LINE_TAG,
+    VERBATIM_TAG,
     COMMENT_TAG
 }   tag_t;
 
@@ -16,8 +17,10 @@ typedef struct
     size_t  sectioning_tag_count;
     size_t  block_tag_count;
     size_t  line_tag_count;
+    size_t  verbatim_tag_count;
     char    *sectioning_tags[MAX_TAGS];
     char    *block_tags[MAX_TAGS];
     char    *line_tags[MAX_TAGS];
+    char    *verbatim_tags[MAX_TAGS];
 }   tag_list_t;
 
