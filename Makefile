@@ -152,8 +152,8 @@ install: all
 	${MKDIR} -p ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/man/man1
 	${INSTALL} -s -m 0555 ${BIN} ${STAGEDIR}${PREFIX}/bin
 	${INSTALL} -m 0444 ${MAN} ${STAGEDIR}${MANPREFIX}/man/man1
-	${MKDIR} -p ${DATADIR}
-	${CP} -R Config ${DATADIR}
+	${MKDIR} -p ${STAGEDIR}${DATADIR}
+	${CP} -R Config ${STAGEDIR}${DATADIR}
 
 ############################################################################
 # Remove all installed files
