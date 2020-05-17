@@ -1,8 +1,0 @@
-chapter
-section
-orderedlist
-itemizedlist
-note
-mediaobject
-imageobject
-

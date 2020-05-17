@@ -53,7 +53,7 @@ MAN     = xml-format.1
 ############################################################################
 # List object files that comprise BIN.
 
-OBJS    = xml-format.o
+OBJS    = xml-format.o tag-list.o strblank.o
 
 ############################################################################
 # Compile, link, and install options
@@ -66,6 +66,7 @@ MANPREFIX   ?= ${PREFIX}
 # Where to find local libraries and headers.  For MacPorts, override
 # with "make LOCALBASE=/opt/local"
 LOCALBASE   ?= ${PREFIX}
+DATADIR     ?= .
 
 ############################################################################
 # Build flags
@@ -75,9 +76,7 @@ LOCALBASE   ?= ${PREFIX}
 # Portable defaults.  Can be overridden by mk.conf or command line.
 CC          ?= gcc
 CFLAGS      ?= -Wall -g
-
-CXX         ?= g++
-CXXFLAGS    ?= -Wall -g
+CFLAGS      += -DDATADIR=\"${DATADIR}\"
 
 LD          = ${CC}
 
@@ -86,7 +85,7 @@ CPP         ?= cpp
 INCLUDES    += -I${LOCALBASE}/include
 CFLAGS      += ${INCLUDES}
 CXXFLAGS    += ${INCLUDES}
-LFLAGS      += -L${LOCALBASE}/lib -lbacon
+LFLAGS      += -L${LOCALBASE}/lib
 
 ############################################################################
 # Assume first command in PATH.  Override with full pathnames if necessary.
@@ -94,6 +93,7 @@ LFLAGS      += -L${LOCALBASE}/lib -lbacon
 # Do not place flags here (e.g. RM = rm -f).  Just provide the command
 # and let each usage dictate the flags.
 
+CP      ?= cp
 MKDIR   ?= mkdir
 INSTALL ?= install
 LN      ?= ln
@@ -128,7 +128,7 @@ include Makefile.depend
 # Edit filespec and compiler command if not using just C source files
 
 depend:
-	rm -f Makefile.depend
+	echo "" > Makefile.depend
 	for file in *.c; do \
 	    ${CPP} ${INCLUDES} -MM $${file} >> Makefile.depend; \
 	    ${PRINTF} "\t\$${CC} -c \$${CFLAGS} $${file}\n\n" >> Makefile.depend; \
@@ -149,14 +149,16 @@ realclean: clean
 # Install all target files (binaries, libraries, docs, etc.)
 
 install: all
-	${MKDIR} -p ${PREFIX}/bin ${PREFIX}/man/man1
-	${INSTALL} -s -m 0555 ${BIN} ${PREFIX}/bin
-	${INSTALL} -m 0444 ${MAN} ${MANPREFIX}/man/man1
+	${MKDIR} -p ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/man/man1
+	${INSTALL} -s -m 0555 ${BIN} ${STAGEDIR}${PREFIX}/bin
+	${INSTALL} -m 0444 ${MAN} ${STAGEDIR}${MANPREFIX}/man/man1
+	${MKDIR} -p ${STAGEDIR}${DATADIR}
+	${CP} -R Config ${STAGEDIR}${DATADIR}
 
 ############################################################################
 # Remove all installed files
 
 uninstall:
-	${RM} ${PREFIX}/bin/${BIN}
-	${RM} ${MANPREFIX}/man/man1/${MAN}
+	${RM} ${STAGEDIR}${PREFIX}/bin/${BIN}
+	${RM} ${STAGEDIR}${MANPREFIX}/man/man1/${MAN}
 
