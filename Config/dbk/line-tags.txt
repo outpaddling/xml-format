@@ -2,4 +2,3 @@ title
 indexterm
 alt
 entry
-

@@ -5,6 +5,3 @@ answer
 para
 listitem
 caption
-screen
-programlisting
-
