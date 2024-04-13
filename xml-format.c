@@ -23,6 +23,9 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+
+#include <xtend/string.h>   // strblank()
+
 #include "tag-list.h"
 #include "xml-format.h"
 
@@ -356,7 +359,7 @@ void    flush_line(char *output_buff, FILE *infile, FILE *outfile,
 
 {
     output_buff[*col] = '\0';
-    if ( !strblank(output_buff) )
+    if ( ! xt_strblank(output_buff) )
     {
 	fputs(output_buff, outfile);
 	putc('\n', outfile);
@@ -448,7 +451,7 @@ int     buff_empty(char *buff, int col)
 
 {
     buff[col] = '\0';
-    return strblank(buff);
+    return xt_strblank(buff);
 }
 
 

@@ -1,5 +1,3 @@
-/* strblank.c */
-int strblank(char *str);
 /* tag-list.c */
 size_t read_string_list(const char *filename, char *str_array[], size_t max_strings, size_t max_strlen);
 size_t read_string(FILE *infile, char *string, size_t max_strlen);

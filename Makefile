@@ -53,7 +53,7 @@ MAN     = xml-format.1
 ############################################################################
 # List object files that comprise BIN.
 
-OBJS    = xml-format.o tag-list.o strblank.o
+OBJS    = xml-format.o tag-list.o
 
 ############################################################################
 # Compile, link, and install options
@@ -85,7 +85,7 @@ CPP         ?= cpp
 INCLUDES    += -I${LOCALBASE}/include
 CFLAGS      += ${INCLUDES}
 CXXFLAGS    += ${INCLUDES}
-LFLAGS      += -L${LOCALBASE}/lib
+LFLAGS      += -L${LOCALBASE}/lib -lxtend
 
 ############################################################################
 # Assume first command in PATH.  Override with full pathnames if necessary.
@@ -149,16 +149,8 @@ realclean: clean
 # Install all target files (binaries, libraries, docs, etc.)
 
 install: all
-	${MKDIR} -p ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/man/man1
-	${INSTALL} -s -m 0555 ${BIN} ${STAGEDIR}${PREFIX}/bin
-	${INSTALL} -m 0444 ${MAN} ${STAGEDIR}${MANPREFIX}/man/man1
-	${MKDIR} -p ${STAGEDIR}${DATADIR}
-	${CP} -R Config ${STAGEDIR}${DATADIR}
-
-############################################################################
-# Remove all installed files
-
-uninstall:
-	${RM} ${STAGEDIR}${PREFIX}/bin/${BIN}
-	${RM} ${STAGEDIR}${MANPREFIX}/man/man1/${MAN}
-
+	${MKDIR} -p ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/man/man1
+	${INSTALL} -s -m 0555 ${BIN} ${DESTDIR}${PREFIX}/bin
+	${INSTALL} -m 0444 ${MAN} ${DESTDIR}${MANPREFIX}/man/man1
+	${MKDIR} -p ${DESTDIR}${DATADIR}
+	${CP} -R Config ${DESTDIR}${DATADIR}
